@@ -1,0 +1,616 @@
+---
+title:  <center> Women in the Workplace </center>
+author: <center> Priyanka Pavithran | Varun Varma </center>
+output: html_document
+runtime: shiny
+---
+
+
+<style>
+body {
+text-align: justify}
+</style>
+
+# {.tabset .tabset-fade .tabset-pills}
+
+
+## 1. Synopsis
+![](women13.jpg)
+
+
+Women have been challenged by inequality in the workforce over the years. Until modern times, legal and cultural practices, combined with the inertia of longstanding religious and educational conventions, restricted women's entry and participation in the workforce. 
+
+**The gender pay gap** is the gap between what men and women are paid. Most commonly, it refers to the median annual pay of all women who work full time and year-round, compared to the pay of a similar cohort of men. It is important for us to identify which employment sectors and occupations have significant gender pay gap. It is also important for us to identify if there has been any improvement in bridging the gap with respect to time.
+
+We performed exploratory data analysis on the historical data about women's earnings and employment status with the help of summaries and graphs to discover patterns and to spot anomalies. 
+
+
+## 2. Packages Required
+
+The following packages has been used for the analysis:
+```{r Loading the required packages, echo=TRUE ,results='hide', message=FALSE}
+library(tidyr)
+library(DT)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(tidyverse)
+library(kableExtra)
+library(shiny)
+library(plotly)
+library(ggalt)
+```
+
+
+**tidyr**     : For changing the layout of the data sets, to convert data into the tidy format.
+
+**DT**        : For HTML display of data.
+
+**ggplot2**   : For customizable graphical representation.
+
+**dplyr**     : For data manipulation.
+
+**readxl**    : For reading the excel file. 
+
+**tidyverse** : Collection of R packages designed for data science that works harmoniously with other packages.
+
+**kableExtra** : To display table in a fancy way.
+
+**shiny**     : For interactive graphs and dashboards.
+
+**plotly**    : To convert ggplots into more interactive and stylish ones.
+
+**ggalt**     : For making dumbbell graphs.
+
+
+## 3. Data Prepration {.tabset .tabset-fade .tabset-pills}
+
+### a. Data Source
+
+There is historical data about women's earnings and employment status, as well as detailed information about specific occupation and earnings from 2013-2016 from the [Bureau of Labor Statistics](https://www.bls.gov/opub/ted/2017/percentage-of-employed-women-working-full-time-little-changed-over-past-5-decades.htm) and the [Census Bureau](https://www.bls.gov/opub/ted/2012/ted_20121123.htm) about women in the workforce.
+
+### b. Explanation of Source Data
+ 
+The data used in the analysis can be found [here](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-03-05).
+The data consists of three tables. 
+
+The first one contains information about the major employment sectors, occupations, proportion of women and the percentage earnings of women in that occupation. It has *2008 observations* and *12 variables*.
+
+**jobs_gender.csv**
+
+```{r Reading jobs_gender table , echo=FALSE}
+dt1 <- read_excel("C:/Users/varmavarun98/Desktop/Class Notes/Data Wrangling/project/table1.xlsx",sheet = 1)
+
+kable(dt1) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+The second table describes the percent of earnings of women with respect to men, for different age groups over the span of time. It has *264 observations* and *3 variables*.
+
+**earnings_female.csv**
+```{r Reading earnings_female table, echo=FALSE}
+dt1 <- read_excel("C:/Users/varmavarun98/Desktop/Class Notes/Data Wrangling/project/table1.xlsx",sheet =2)
+
+kable(dt1) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+This table contains data of proportion of women and men working part-time and full-time over the span of time. It has *49 observations* and *7 variables*.
+
+**employed_gender.csv**
+```{r Reading employed_gender table, echo=FALSE}
+dt1 <- read_excel("C:/Users/varmavarun98/Desktop/Class Notes/Data Wrangling/project/table1.xlsx",sheet =3)
+
+kable(dt1) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+### c. Data Cleaning Process
+
+**We read the data from the three tables. Since we are using most of the character fields as categorical variables, we keep STRINGASFACTORS as defaulted TRUE.**
+
+```{r Reading all 3 Files}
+jobs_gender <- read.csv("jobs_gender.csv")
+earnings_female <- read.csv("earnings_female.csv")
+employed_gender <- read.csv("employed_gender.csv")
+```
+**We now take a look at the structure of the data and also their summary statistics. The summaries would help us spot any anomalies like negative values. It would also indicate the fields with missing values and their counts.**
+
+```{r Basic Structure of jobs_gender file}
+str(jobs_gender)
+summary(jobs_gender)
+```
+
+**We see that there are 4 missing values under the column 'total_earnings_male', 65 missing values for 'total_earnings_female' and 846 missing values under 'wage_percent_of_male' from the first table- 'jobs_gender'.**
+
+**Since 4 and 65 correspond to 0.19% and 3.11% of the dataset respectively, we could remove them from further analysis.**
+**However, 846 is a significant fraction we wouldn't remove those observations. The values for these observations can be calculated using total_earnings_female/total_earnings_male X 100.**
+
+**We would rename the field 'wage_percent_of_male' to 'wage_percent_female_wrt_male' for clarity.**
+
+**We also see from the summary() for job_gender table, the minimum value for both columns: workers_male and workers_female is 0. This indicates that there are certain occupations where either only male or female employees work.**
+
+```{r To count the number of observations containing only male and female}
+jobs_gender%>% filter(workers_female==0)%>% count()
+jobs_gender%>% filter(workers_male==0)%>% count()
+```
+
+**These observations have NA values in their corresponding earnings variables hence they automatically handled.**
+
+```{r Filtering the NA Values,  echo=TRUE, results='hide', warning=FALSE}
+jobs_gender <- jobs_gender %>% filter(!is.na(total_earnings_male) &  !is.na(total_earnings_female)) %>% rename(wage_percent_female_wrt_male = wage_percent_of_male) 
+
+jobs_gender$wage_percent_female_wrt_male[is.na(jobs_gender$wage_percent_female_wrt_male)] <- jobs_gender$total_earnings_female/jobs_gender$total_earnings_male *100
+```
+
+
+
+**We will now look into the table earnings_female that provides us data regarding percentage earnings of women of various age groups over the years**
+```{r Basic structure of earnings_female file} 
+str(earnings_female)
+summary(earnings_female)
+unique(earnings_female$group)
+```
+**Here we find a group named "Total, 16 years and older" in the group column. This does not giving any proper insights, hence we will remove those values from the data set.**
+
+```{r Removing the non required data, echo=TRUE, results='hide', warning=FALSE}
+earnings_female <- earnings_female %>% filter(str_detect(group, "Total, 16 years and older") == FALSE)
+```
+
+
+**Now taking a look at the employed_gender table**
+```{r Basic Structure of employed_gender file}
+str(employed_gender)
+summary(employed_gender)
+```
+
+**We will use the employed_gender table as it is as there are no concerning issues.**
+
+**Now the data is ready for analysis.**
+
+
+### d. Cleaned Data{.tabset .tabset-fade .tabset-pills}
+
+The cleaned data can be found below:
+
+#### jobs_gender
+```{r Displaying the cleaned jobs_gender, echo=FALSE}
+datatable(jobs_gender, filter = 'top')
+```
+
+#### earnings_female
+```{r Displaying the cleaned earnings_female, echo=FALSE}
+datatable(earnings_female, filter = 'top')
+```
+
+#### employed_gender
+```{r Displaying the cleaned employed_gender, echo=FALSE}
+datatable(employed_gender, filter = 'top')
+```
+
+## 4. Exploratory Data Analysis{.tabset .tabset-fade .tabset-pills}
+
+
+The data has been analysed for patterns and trends in the following:
+
+* Representation of women in various occupational sectors
+* Earnings of women as compared to men in each of these sectors
+* Representation of women in part time and full time jobs
+* Change in the above factors with respect to time
+
+
+### a. Analysis by occupational category
+
+We grouped and divided the job_gender data with respect to each major category that gave us an idea where the pay gap is maximum and minimum. Few Interesting Observations from the analysis are:
+
+* *Even though the women earn a maximum salary by around 22% when compared to the maximum salary earned by men in Production, Transportation and Material Moving Category, the percentage pay gap difference between men and women is maximum. This is a category with 75% men in the workforce where the minimum salary earned by women is 189% less than the minimum salary earned by men.*
+
+* *In the Healthcare Practitioners and Technical Category, where the women in the workplace is more than men, still they receive less earning by around 20% when compared to male.*
+
+* *Further analysis indicates that the earning of women is independent on the representation of women in the workplace for each category.*
+
+* *We can also see the trend that as the age of the women increases, the pay gap also increases.*
+
+
+**1. We summarize and visualize the mean earning of women in comparison to men by each major category of occupation.**
+
+```{r summarizing & visualizing the mean earnings, echo=FALSE, warning=FALSE}
+summary1 <- jobs_gender %>% 
+  group_by(major_category) %>%
+  summarize( mean_earnings_female = sum(total_earnings_female)/n(), mean_earnings_male = sum(total_earnings_male)/n()) %>%
+  mutate(perc_difference = (mean_earnings_male - mean_earnings_female)/mean_earnings_female*100)
+ mean_perc_diff <- mean(summary1$perc_difference)
+
+ggplot(summary1, aes(x= major_category, y= perc_difference)) + geom_col(fill="lightblue") +
+  geom_text(aes(label = round(perc_difference,0)), size = 3, hjust=1.5) +
+ ggtitle("Percentage Difference in Earnings \nby Major Occupational Category",)+
+  xlab("Major Occupation Category") + ylab("Percentage Difference") + coord_flip() 
+
+```
+
+We see that there is a significant positive difference in the earnings of women in comparison to men in all major occupational categories. The percentage difference is as high as 25% in categories like *Production, Transportation, and Material Moving* and in *Management, Business and Finacial*.
+The least difference is (around 13%) in the field of *Natural Resources, Construction and Maintenance*. The overall average in the pay gap is around 19% across all categories.
+
+
+
+
+
+
+
+**2. We will look at the minimum and maximum salaries in each department. We are interested in learning if these are salaries earned by a woman or a man**
+
+```{r minimum and maximum salaries, echo=FALSE, warning=FALSE}
+summary2 <- jobs_gender %>% 
+group_by(major_category) %>%
+summarize( max_earnings_female = max(total_earnings_female), max_earnings_male = max(total_earnings_male), min_earnings_female = min(total_earnings_female), min_earnings_male = min(total_earnings_male)) %>%
+mutate(perc_max_difference = (max_earnings_male - max_earnings_female)/max_earnings_female*100, perc_min_difference = (min_earnings_male - min_earnings_female)/min_earnings_female*100) %>%
+mutate(if_male_max= perc_max_difference >0, if_male_min= perc_min_difference<0) %>%
+select(major_category,perc_max_difference,perc_min_difference,if_male_max,if_male_min)
+
+  ggplot(summary2, aes(x= major_category, y= perc_max_difference,fill=if_male_max)) + 
+  geom_col() + geom_text(aes(label = round(perc_max_difference,0)), size = 3,hjust=-0)+
+   ggtitle("Who earns the maximum salary \nand by how much?") +
+  ylab("Percentage Difference in Maximun Salary of Male and Female") +
+  xlab("Major Occupational Category") +
+  coord_flip() + guides(fill=guide_legend(" "))+ scale_fill_discrete(labels= c( "Female earning more","Male earning more"))
+
+
+
+ ggplot(summary2, aes(x= major_category, y= perc_min_difference,fill=if_male_min)) + geom_col() + 
+  geom_text(aes(label = round(perc_min_difference,0)), size = 3,hjust=0.5)+
+  ggtitle("Who earns the minimum salary \nand by how much?") +
+  ylab("Percentage Difference in Minimum Salary of Male and Female") +
+  xlab("Major Occupational Category") +
+  coord_flip() + guides(fill=guide_legend(" "))+ scale_fill_discrete(labels= c("Female earning less","Male earning less"))
+```
+
+
+Comparing maximum and minimum values of earnings in each major category, we see that women are earning the minimum salaries in most categories. They earn maximum salaries in about three major categories.
+In the category of Production, Transportation and Material Moving, we see that a woman earns the maximum as well as the minimum salary. This is the department with the highest difference in the mean salary too.
+
+
+
+
+
+
+
+
+
+**3. We now take a look at the proportion of women in each of the major categories.**
+
+```{r proportion of women in major categories, echo=FALSE, warning = FALSE}
+summary3 <- jobs_gender %>%
+  group_by(major_category) %>%
+  summarise(total_female_percent = sum(workers_female)/sum(total_workers)*100,
+            total_male_percent = sum(workers_male)/sum(total_workers)*100)  %>% 
+  gather(key=gender, value = proportion, total_female_percent:total_male_percent)
+
+ggplot(summary3, aes(x=major_category, y= proportion, fill= gender)) + geom_col() + 
+  ggtitle("Representation of Women in Each \nOccupational Category") +
+  ylab("Propotion Value") +
+  xlab("Major Category")+ coord_flip() +
+  guides(fill=guide_legend(" "))+ scale_fill_discrete(labels= c("Percentage of Women", "Percentage of Men"))
+```
+
+We see that the category of Natural Resources, Construction and Maintenance is highly male-dominated. The healthcare Practitioners and Technical department have the largest proportion of women but still, have a pay gap of 20%. Service Sales and Office, Management Business have about 50% of women representation.
+
+
+
+
+
+
+
+**4. To study the correlation between the earnings of women and their representation in each category,**
+**we look at the correlation values.**
+
+```{r  correlation ,echo = FALSE, warning = FALSE}
+
+correlation <- jobs_gender %>% group_by(major_category) %>% 
+  summarize(cor= cor(percent_female,wage_percent_female_wrt_male)) 
+ correlation
+```
+
+From the above results, we can confirm that the representation of women in an occupational category does not influence their earnings.
+
+
+
+
+
+
+
+
+
+**5. Now we use the earning females table to visualize the aggregate percentage earnings of female with respect to male for various age categories of women over the years.**
+
+```{r percentage earnings, echo=FALSE, warning=FALSE}
+data2 <- earnings_female %>%
+  group_by(group) %>%
+  summarise(average_percent_female = sum(percent)/n()) 
+
+
+ggplot(data= data2, aes(x=group, y=average_percent_female)) + 
+geom_col(fill= "lightblue") + coord_flip() +
+   geom_text(aes(label = round(average_percent_female,0)), size = 3,hjust=2)+
+  ggtitle("Percentage Earnings of Women of Various Age Groups") +
+  xlab("Age Group of Women") +
+  ylab("Percentage Earning of Women with Respect to Men")
+
+```
+
+
+Women belonging to the age-group of 16-19 years and 20-24 years face a lesser pay gap in comparison to the remaining. The pay gap among age groups tends to increase with respect to the age of women. However, the pay gap reduces again for women age 65 years and older.
+
+
+### b. Analysis with respect to Time
+
+We grouped and divide the data with respect to the time frame that gave us an idea where the pay gap is maximum and minimum. Few Interesting Observations from the analysis are:
+
+* *Salary earned by women in 2016 in all major category is less than the salary earned by men in 2013.*
+
+* *Even though the proportion of women in each major category is more or less the same from 2013 to 2016, there are some category where mean salary obtained by women fluctuates from 2013 to 2016*
+
+* *We also see that the part time female workers are around 3 times compared to part time male workers but their proportion  decreases with time.*
+
+* *Younger women face less gender pay gap compared to elder women.*
+
+
+**1. We check how the salary has changed for each major occupational category over the time period for both men and women.**
+```{r salary wrt time, echo= FALSE, warning=FALSE}
+#Jobs Gender Table:  Increment in each year
+data_year_female<- jobs_gender %>%
+  select(year, major_category, total_earnings_female) %>%
+  group_by(year,major_category) %>%
+  summarise(average_earning_female= mean(total_earnings_female)) %>%
+  spread(key=year, value = average_earning_female) %>% mutate(Increment= ((`2016`-`2013`)/`2013`)*100)
+
+data_year_male<- jobs_gender %>%
+  select(year, major_category, total_earnings_male) %>%
+  group_by(year,major_category) %>%
+  summarise(average_earning_male= mean(total_earnings_male)) %>%
+  spread(key=year, value = average_earning_male) %>% mutate(Increment= ((`2016`-`2013`)/`2013`)*100)
+ 
+
+ggplot(data_year_female, aes(x=`2013`, xend=`2016`, y=major_category )) + 
+geom_dumbbell()+
+   geom_segment(aes(x=`2013`, 
+                         xend=`2016`, 
+                         y=major_category,
+                         yend=major_category), 
+                     color="#b2b2b2", size=1.5)+
+        geom_dumbbell(color="light blue", 
+                      size_x=5.5, 
+                      size_xend = 5.5,
+                      colour_x="#edae52", 
+                      colour_xend = "#9fb059")+
+       geom_text(aes(label = round(Increment,0)), size = 5, hjust=0) +
+ ggtitle("Salary Change of Women From 2013 to 2016",)+
+  ylab("Major Occupation Category") + xlab("Average Salary of Women")
+
+ggplot(data_year_male, aes(x=`2013`, xend=`2016`, y=major_category  )) + 
+geom_dumbbell()+
+   geom_segment(aes(x=`2013`, 
+                         xend=`2016`, 
+                         y=major_category,
+                         yend=major_category), 
+                     color="#b2b2b2", size=1.5)+
+        geom_dumbbell(color="light blue", 
+                      size_x=5.5, 
+                      size_xend = 5.5,
+                      colour_x="#edae52", 
+                      colour_xend = "#9fb059")+
+       geom_text(aes(label = round(Increment,0)), size = 5, hjust=0) +
+ ggtitle("Salary Change of Men From 2013 to 2016",)+
+  ylab("Major Occupation Category") + xlab("Average Salary of Men")
+```
+
+
+
+We see that even though there are certain categories where the increment percentage(indicated by the number on the dumbbell plot) in salary from 2013 to 2016 is more for women, the actual picture is very different. There is a huge pay gap per year in each major occupational categories which is evident from the fact that in all the categories the salary that a woman is making in 2016 is way less than the salary that men used to make 4 years ago i.e. 2013.
+
+
+
+
+
+**2. Also, we look at the proportion of women in each occupational category over the period from 2013 to 2016.**
+```{r proportion of women, echo = FALSE, warning=FALSE, fig.width=10}
+#Visualizing proportion by year
+summary5 <- jobs_gender %>%
+  select(year, major_category, total_workers, workers_male, workers_female) %>%
+  group_by(year,major_category) %>%
+  summarise(total_female_percent = sum(workers_female)/sum(total_workers),
+            total_male_percent = sum(workers_male)/sum(total_workers)) %>%
+  gather(key=gender, value = proportion, "total_female_percent":"total_male_percent")
+
+ggplot(data= summary5, aes(x=major_category, y= proportion, fill = gender)) + geom_col() +   
+  facet_wrap(~year) + coord_flip() + 
+  ggtitle("Representation of Women Over the Years") + xlab("Propotion Value") +ylab("Major Category") +
+   guides(fill=guide_legend(" "))+ scale_fill_discrete(labels= c("Percentage of Women", "Percentage of Men"))
+ 
+```
+
+
+We see that the representation of women in each of the categories has remained almost constant over the four years. As seen earlier, Natural Resources is one of the major occupational sectors which is heavily male-dominated over the four years.
+ 
+
+```{r Visualizing salary by year, echo=FALSE, warning=FALSE}
+#Visualizing salary by year
+summary6 <- jobs_gender %>%
+  select(year, major_category, wage_percent_female_wrt_male) %>%
+  group_by(year,major_category) %>%
+  summarise(Average_wage_percent_female_wrt_male = mean(wage_percent_female_wrt_male))
+
+
+ ggplot(data= summary6, aes(x=year, y=Average_wage_percent_female_wrt_male )) + 
+   geom_line() + facet_wrap(~major_category,ncol = 2)+ ggtitle("Salary Percentage of Women Over the Years") + xlab("Year") +ylab("Percentage")
+
+```
+
+
+We see that the most drastic drop in earnings of women happens in Natural Resources in 2015. The most drastic rise happens in Service in 2014. In the categories of Computer, Healthcare, Education the salary percentages fluctuate while it has remained fairly constant in Management, Production, and Sales.
+
+**3. Now we use the employee gender table to derive insights for our analysis.**
+
+```{r part time women VS men, echo=FALSE, warning=FALSE}
+#employed_gender : part time women VS men
+
+summary7<-employed_gender %>% group_by(year)  %>%  mutate(Ratio= sum(part_time_female)/sum(part_time_male))
+
+ggplot(data= summary7, aes(x=year, y=Ratio, fill=year))+geom_line()+  ggtitle("Representation of Women in Part Time Jobs") + xlab("Year") +ylab("Ratio of part time female by part time male ")
+```
+
+
+From the above output, we see that the number of full time women in all the year is less than the men. The ratio of full time women is more or less the same with some positive increment in the last few years. In the '70s the ratio was 100 women for about 123 men and improves to a ratio of 100 women for 117 men in 2010.
+
+```{r full time women VS men,echo=FALSE, warning=FALSE}
+#employed_gender : full time women VS men
+
+summary8<-employed_gender %>% group_by(year)  %>%  mutate(Ratio= sum(full_time_female)/sum(full_time_male))
+ggplot(data= summary8, aes(x=year, y=Ratio, fill=year))+geom_line() + 
+  ggtitle("Representation of Women in Time Jobs") + xlab("Year") +
+  ylab("Ratio of full time female by full time male ")
+```
+
+
+From the above output we see that the number of full time women in all the year is less than the men. The ratio of full time women is more or less the same with some postive increment in the last few years. In the 70's the ratio was 100 women for about 123 men and improves to a ratio 100 women for 117 men in 2010.
+
+```{r part time women VS full time women, echo=FALSE, warning=FALSE}
+#employed_gender : part time women VS full time women
+
+summary9<- employed_gender %>%gather(key= time, value= proportion,part_time_female,full_time_female) %>%
+  select(year, time, proportion)
+ggplot(data = summary9 , aes(x= year, y=proportion, fill=(time))) +
+  geom_bar(stat= 'identity',position='dodge')+ ggtitle("Women Employees Over Various Years") + xlab("Year") +ylab("Percent of Women Employees") + guides(fill=guide_legend(" "))+ scale_fill_discrete(labels= c("Full time", "Part Time"))
+
+```
+
+```{r part time men VS full time men, echo=FALSE, warning=FALSE}
+#employed_gender : part time men VS full time men
+
+summary10<- employed_gender %>%gather(key= time, value= proportion,part_time_male,full_time_male) %>%
+  select(year, time, proportion)
+ggplot(data = summary10 , aes(x= year, y=proportion, fill=(time))) +
+  geom_bar(stat= 'identity',position='dodge')+ ggtitle("Male Employees Over Various Years") + xlab("Year") +ylab("Percent of Male Employees") + guides(fill=guide_legend(" "))+ scale_fill_discrete(labels= c("Full time", "Part Time"))
+
+```
+
+
+From the above two graphs, we see that the variation in full time and part time jobs are huge for the genders. 30% of women work part time jobs while only about 10% of men work part time.
+
+**4. Now we look into the earning female table to derive insights for our analysis.**
+
+```{r year wise difference earnings, echo=FALSE, warning=FALSE}
+#Year wise difference
+
+earnings_female <- earnings_female %>% filter(str_detect(group, "Total, 16 years and older") == FALSE)
+
+ggplot(data= earnings_female, aes(x=Year, y=percent, color=group)) + 
+geom_line(size=1.2) + theme(legend.key.size = unit(3,"line")) + 
+ggtitle("Percentage Earnings of Women Over the Years") + xlab("Year") +ylab("Percent of Earnings of women with respect to men") + labs(color= "Age Group")
+
+```
+
+
+
+We see that the change in the percentage of earnings for women with respect to men is increasing for the women between the age group 25 to 64. The variation is random for women of the age group 16 to 19 years, 20-24 years and 65 years and older.
+
+
+
+
+### c. Study of independent occupational categories {.tabset .tabset-fade .tabset-pills}
+
+
+**Pay gap percentage = median earnings of men- median earnings of women/median earning of men**
+
+We have studied some major occupational categories that had some significant observations. They are as followws: 
+
+```{r echo=FALSE, warning=FALSE, fig.width=20}
+
+selectInput("Major_category",
+            "Choose a major occupation category",
+             choices = sort(unique(jobs_gender$major_category)),
+             selected = "Computer, Engineering, and Science"
+)
+
+
+selectInput("Year",
+            "Choose a major year",
+             choices = sort(unique(jobs_gender$year)),
+             selected = "2016"
+)
+
+renderPlotly({ p1 <- jobs_gender %>% filter(year == input$Year) %>%
+             filter(major_category == input$Major_category) %>%
+             ggplot(aes(x =workers_female/total_workers,
+                        y =(total_earnings_male -total_earnings_female)/total_earnings_male,
+                        col =minor_category,size = total_workers, label = occupation))+
+             geom_point() +
+             scale_size_continuous(range = c(1,10)) +
+             labs(
+                  x= "Percentage of women representation",
+                  y= "Percentage of median female salary wrt male",
+                  title = "Gender Disparity and Pay Gap in Major Categories"
+                  ) + guides(fill=guide_legend("Minor Category")) +
+  scale_x_continuous(label= scales::percent) +
+   scale_y_continuous(label= scales::percent)
+
+
+     ggplotly(p1) %>%
+     layout(hoverlabel = list(bgcolor = "white",
+                              font = list(family = "Calibri",
+                                          size = 12,
+                                          color = "black")))
+})    
+```
+
+#### Computer Engineering and Science
+
+* The median salary of women in the occupation of survey researchers is about 270% percent of that of the total male median salary. This implies a negative pay gap, good representation, highly promising occupation for women in 2016. The pay difference percentage decreased from 40% to -170%. Also, the representation of women increased from 57% to 70%  in 3 years.
+
+* The architecture and Engineering department generally has a low representation of women in comparison to the other minor categories.
+Agricultural engineer women had received pay gap of 40% in 2015 with representation as low as 0.05%.
+
+* The pay gap for mathematicians has increased from -34% to a shocking 60% from 2013 to 2014, and has stayed around 40% till 2016. This could be as a result of small data set. The representation of women in the sector has increased which implies more women took up average paying jobs after 2014 in the field of mathematics.
+
+* The pay gap for women nuclear technicians wrt men has decreased from 35% to about 18% from 2013 to 2015.
+
+#### Education, Legal, Community Service, Arts, and Media
+
+
+* Preschool and kindergarten teachers, constitute 97% females, however, the pay gap is about 8% which suggests that the well-paying positions are held by men.
+
+* Dancers and choreographers though constitute a small section, have a huge pay difference of 44%.
+
+* Judicial law clerks have a negative pay gap of -16.4% and female representation of 50%.
+
+#### Healthcare Practitioners and Technical
+
+
+* Podiatrists have only 15% of their workforce as women and have a positive pay gap of 30%. 
+
+* Nurses, an occupation where about 80% are women are experiencing a pay gap of about 10%.
+
+* Dieticians and Nutritionists with about 90% of their workforce as women have a negative pay gap of -17%.
+
+
+## 5. Summary
+
+Based on the data at hand we have tried to study the trends and patterns in earnings of women in comparison to men with respect to various factors. This resulted in a few insights about the same.
+
+**Factor 1: Major occupational categories:**
+We have grouped and divided the whole data with respect to each major category which gave us an idea where the pay gap is maximum and minimum. We see that there is a significant positive difference in the earnings of women in comparison to men in all major occupational categories. It is also seen that six out of eight occupational categories have minimum median salaries earned by a woman. Whereas five out of these eight occupational categories have the maximum salary earned by a man. This indicates the possibility of men holding a larger proportion of well-paid jobs in each of these sectors.
+
+**Factor 2: Representation of Women in the Workforce**
+We see that the proportion of women in the workforce for each of the departments hasn’t changed significantly over the years. There is no considerate effect of their representation on their income. It is also noticed that they suffer a pay gap of about 10 to 20% in certain occupations like Nursing where their representation is above 80%. Women are almost half of the workforce. Yet, on average, women continue to earn considerably less than men. 
+
+**Factor 3: Full time and part time**
+Taking ratios of the number of women to men in part time to full time jobs, we see that women outnumber men in part time jobs. Full time jobs have more men representation. This suggests the possibility of the existence of bias. Women tend to take up part time jobs to meet other household expectations.
+
+**Factor 4: Time**
+ We grouped and divided the data with respect to year giving us the indication whether the pay gap increases or decreases with respect to time. The trend suggests that though there has been an increase in the pay of women with respect to men over the years, the change is not very significant for some age groups. It has almost remained the same for the oldest and youngest age groups.
+
+
+
+
+
+
+
