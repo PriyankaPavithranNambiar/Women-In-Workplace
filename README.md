@@ -1,4 +1,4 @@
-#WomenInWorkplace
+
 Women have been challenged by inequality in the workforce over the years.
 The gender pay gap is the gap between what men and women are paid and persists even in modern times.
 
